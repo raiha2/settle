@@ -1,1 +1,2 @@
 - [Workspace package installation](package-installation.md) — scope added runtime dependencies to the importing workspace package.
+- [GitHub repository uploads](github-repository-uploads.md) — bootstrap empty repos through Contents API and pace connector Git API writes below its 10-RPS limit.
