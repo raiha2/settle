@@ -1,0 +1,317 @@
+I need you to fix an important problem in the settlement logic of my bill-splitting app.
+
+DO NOT just patch the UI. First understand and correct the underlying calculation logic.
+
+## The problem
+
+The app currently handles this example incorrectly:
+
+* Total bill = Rs. 1,300
+* Person 1 paid Rs. 1,000
+* Person 2 paid Rs. 1,000
+* Person 3 paid Rs. 0
+* Total cash handed over = Rs. 2,000
+* Change received = Rs. 700
+
+The app correctly displays the Rs. 700 change, but the settlement summary is wrong.
+
+It currently says Person 3, who paid nothing, should make payments to Person 1 and Person 2 and then Person 3 also receives part of the Rs. 700 change.
+
+That is confusing and does not represent the real cash flow correctly.
+
+## IMPORTANT CONCEPT
+
+Separate these concepts:
+
+### 1. Amount paid at the counter
+
+This is the actual money each person contributed.
+
+Person 1: Rs. 1,000
+Person 2: Rs. 1,000
+Person 3: Rs. 0
+
+Total contributed = Rs. 2,000
+
+### 2. Actual bill
+
+Bill = Rs. 1,300
+
+### 3. Change
+
+Change = total contributed - bill
+
+Rs. 2,000 - Rs. 1,300 = Rs. 700
+
+The Rs. 700 is NOT an additional expense and should NOT be treated as a normal payment by the person who receives it.
+
+It is returned cash from the original contributors' Rs. 2,000.
+
+---
+
+# HOW THE APP SHOULD THINK ABOUT IT
+
+The final amount that actually needs to be paid for the expense is ONLY:
+
+Rs. 1,300
+
+The Rs. 700 change is returned money.
+
+Therefore the app should determine how the Rs. 1,300 expense is ultimately shared among the 3 people.
+
+Equal split:
+
+Rs. 1,300 / 3 = Rs. 433.33 each
+
+The app should then account for the fact that Person 1 and Person 2 initially put Rs. 1,000 each into the transaction and Rs. 700 of that money came back as change.
+
+The app must assign the Rs. 700 change back to the people who contributed the money.
+
+DO NOT simply give the entire Rs. 700 to Person 3.
+
+---
+
+# CHANGE OWNERSHIP
+
+The change should be allocated to the people who paid for the original transaction.
+
+In this example:
+
+Person 1 contributed Rs. 1,000 / Rs. 2,000 = 50%
+
+Person 2 contributed Rs. 1,000 / Rs. 2,000 = 50%
+
+Therefore:
+
+Person 1 receives Rs. 350 of the change.
+
+Person 2 receives Rs. 350 of the change.
+
+Person 3 receives Rs. 0 of the change.
+
+After returning the change:
+
+Person 1's effective contribution = Rs. 1,000 - Rs. 350 = Rs. 650
+
+Person 2's effective contribution = Rs. 1,000 - Rs. 350 = Rs. 650
+
+Person 3's effective contribution = Rs. 0
+
+Total effective contribution:
+
+Rs. 650 + Rs. 650 = Rs. 1,300
+
+This exactly matches the bill.
+
+---
+
+# FINAL SETTLEMENT
+
+Each person's share is:
+
+Rs. 1,300 / 3 = Rs. 433.33 approximately.
+
+After accounting for the change:
+
+Person 1 effectively paid Rs. 650.
+
+Person 2 effectively paid Rs. 650.
+
+Person 3 effectively paid Rs. 0.
+
+Therefore the remaining amounts are approximately:
+
+Person 1 overpaid by Rs. 216.67
+
+Person 2 overpaid by Rs. 216.67
+
+Person 3 owes Rs. 433.33
+
+The settlement should therefore be approximately:
+
+Person 3 → Person 1: Rs. 216.67
+
+Person 3 → Person 2: Rs. 216.66
+
+The one-cent difference is simply due to rounding.
+
+MOST IMPORTANTLY:
+
+Person 3 should NOT:
+
+1. Pay Person 1
+2. Pay Person 2
+3. Then receive part of the change
+
+That creates a confusing circular-looking settlement.
+
+The change should first be returned/allocated to the people who actually contributed the money.
+
+Then calculate the final settlement using their effective contributions.
+
+---
+
+# GENERAL RULE
+
+Please implement this as a general rule, not as a hardcoded fix for the Rs. 1,300 example.
+
+If:
+
+totalPaid > billAmount
+
+then:
+
+change = totalPaid - billAmount
+
+The change belongs to the people who contributed to the payment.
+
+Allocate the change proportionally according to each person's contribution:
+
+changeForPerson =
+(personPaid / totalPaid) * change
+
+Then:
+
+effectivePaid =
+personPaid - changeForPerson
+
+The effectivePaid amounts should add up exactly to the bill amount, subject to rounding.
+
+Then calculate each person's share and settlement using effectivePaid.
+
+---
+
+# IMPORTANT EDGE CASES
+
+Handle these cases correctly.
+
+### Case 1 — Exact payment
+
+Bill = Rs. 1,000
+
+Person 1 = Rs. 500
+Person 2 = Rs. 500
+
+Change = Rs. 0
+
+Normal settlement calculation.
+
+---
+
+### Case 2 — One person pays everything
+
+Bill = Rs. 900
+
+Person 1 = Rs. 1,000
+Person 2 = Rs. 0
+Person 3 = Rs. 0
+
+Change = Rs. 100
+
+The Rs. 100 change belongs entirely to Person 1.
+
+Effective contributions:
+
+Person 1 = Rs. 900
+Person 2 = Rs. 0
+Person 3 = Rs. 0
+
+Then calculate the settlement.
+
+---
+
+### Case 3 — Two people contribute
+
+Bill = Rs. 1,300
+
+Person 1 = Rs. 1,000
+Person 2 = Rs. 1,000
+Person 3 = Rs. 0
+
+Change = Rs. 700
+
+Change allocation:
+
+Person 1 = Rs. 350
+Person 2 = Rs. 350
+Person 3 = Rs. 0
+
+Effective:
+
+Person 1 = Rs. 650
+Person 2 = Rs. 650
+Person 3 = Rs. 0
+
+Then calculate the final settlement.
+
+---
+
+# UI REQUIREMENT
+
+The result should make the distinction very clear.
+
+Show a section like:
+
+CHANGE RECEIVED
+
+Rs. 700.00
+
+Then:
+
+Change returned to:
+
+Person 1 → Rs. 350.00
+Person 2 → Rs. 350.00
+Person 3 → Rs. 0.00
+
+Then show:
+
+FINAL SETTLEMENT
+
+Person 3 → Person 1: Rs. 216.67
+Person 3 → Person 2: Rs. 216.66
+
+Do NOT mix the change transactions into the "who owes whom" section.
+
+The user should clearly understand:
+
+1. How much cash was handed over
+2. How much change came back
+3. Who gets the change
+4. After the change is returned, who ultimately owes whom
+
+---
+
+# VERY IMPORTANT
+
+Please inspect the existing calculation code before making changes.
+
+Find the function/component responsible for:
+
+* calculating the bill split
+* calculating change
+* calculating balances
+* generating settlement transactions
+
+Refactor the calculation logic if necessary rather than adding a special-case condition for this example.
+
+Create a clean separation between:
+
+calculateChange()
+allocateChange()
+calculateEffectiveContributions()
+calculateBalances()
+calculateSettlement()
+
+The UI should consume the final results from these functions.
+
+Also add automated tests for the examples above so this bug does not come back.
+
+After fixing it, explain briefly:
+
+1. What was wrong with the old logic
+2. What changed
+3. How the new change-allocation logic works
+4. What the Rs. 1,300 example now produces
+
+Do not change unrelated parts of the application.
